@@ -1,7 +1,12 @@
 {
   "domain": "my_luminus_pricing",
   "name": "My Luminus - Pricing",
-  "version": "1.0.0.0",
+  "version": "1.0.0",
+  "documentation": "https://github.com/youruser/my-luminus-pricing-ha-addon#readme",
+  "issue_tracker": "https://github.com/youruser/my-luminus-pricing-ha-addon/issues",
+  "codeowners": ["@youruser"],
+  "integration_type": "device",
   "single_config_entry": false,
-  "config_flow": true
+  "config_flow": true,
+  "requirements": ["requests>=2.28.0"]
 }
