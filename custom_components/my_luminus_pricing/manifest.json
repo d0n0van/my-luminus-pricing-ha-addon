@@ -1,7 +1,7 @@
 {
   "domain": "my_luminus_pricing",
   "name": "My Luminus - Pricing",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "documentation": "https://github.com/youruser/my-luminus-pricing-ha-addon#readme",
   "issue_tracker": "https://github.com/youruser/my-luminus-pricing-ha-addon/issues",
   "codeowners": ["@youruser"],

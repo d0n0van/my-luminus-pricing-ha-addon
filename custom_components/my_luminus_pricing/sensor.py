@@ -1,23 +1,14 @@
-"""Sensor setup for our Integration."""
+"""Sensor setup for My Luminus - Pricing."""
 
 import logging
-from dataclasses import dataclass
-from homeassistant.components.sensor import (
-    SensorDeviceClass,
-    SensorEntity,
-    SensorStateClass,
-)
-from homeassistant.const import (
-    UnitOfElectricCurrent,
-    UnitOfElectricPotential,
-    UnitOfEnergy,
-    UnitOfTemperature,
-)
+
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import MyConfigEntry
 from .base import LuminusBaseEntity
+from .const import DEVICE_META_KEYS
 from .coordinator import LuminusCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -40,31 +31,25 @@ async def async_setup_entry(
     # ----------------------------------------------------------------------------
 
     sensors = []
-    skipProps = ['device_id', 'device_name', 'device_type', 'product_name']
-    for device in coordinator.data:
-        sensors.append(LuminusBaseSensor(coordinator, device, 'product_name'))
-        for propName, price in device.items():
-            # Skip meta properties
-            if(propName in skipProps):
+    for device in coordinator.data or []:
+        sensors.append(LuminusBaseSensor(coordinator, device, "product_name"))
+        for prop_name, _ in device.items():
+            if prop_name in DEVICE_META_KEYS:
                 continue
-            
-            sensorType = YearlyPriceSensor if propName == 'fixed' else EnergyPriceSensor
-            sensors.append(sensorType(coordinator, device, propName))
+            sensor_type = (
+                YearlyPriceSensor if prop_name == "fixed" else EnergyPriceSensor
+            )
+            sensors.append(sensor_type(coordinator, device, prop_name))
 
     # Now create the sensors.
     async_add_entities(sensors)
 
 
 class LuminusBaseSensor(LuminusBaseEntity, SensorEntity):
-
     @property
-    def native_value(self) -> int | float:
+    def native_value(self) -> int | float | None:
         """Return the state of the entity."""
-        # Using native value and native unit of measurement, allows you to change units
-        # in Lovelace and HA will automatically calculate the correct value.
         return self.coordinator.get_device_parameter(self.device_id, self.parameter)
-
-#class ProductNameSensor(LuminusBaseSensor)
 
 
 class YearlyPriceSensor(LuminusBaseSensor):

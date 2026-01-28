@@ -48,7 +48,6 @@ class LuminusBaseEntity(CoordinatorEntity):
         self.device = device
         self.device_id = device["device_id"]
         self.parameter = parameter
-        #self._translation_key = parameter
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -81,23 +80,17 @@ class LuminusBaseEntity(CoordinatorEntity):
         # and a device uuid, mac address or some other unique attribute.
         # ----------------------------------------------------------------------------
         return DeviceInfo(
-            name=f"{self.coordinator.get_device_parameter(self.device_id, "device_type")} {self.coordinator.get_device_parameter(self.device_id, "device_id")}",
-            #friendly_name=self.coordinator.get_device_parameter(self.device_id, "device_name"),
+            name=f"{self.coordinator.get_device_parameter(self.device_id, 'device_type')} {self.coordinator.get_device_parameter(self.device_id, 'device_id')}",
             manufacturer="Luminus",
-            #model='Electricity meter',
-             model=str(
-                self.coordinator.get_device_parameter(self.device_id, "device_type")
-             )
-             .replace("_", " ")
-             .title() + ' meter',
-            sw_version='1.00',
-            identifiers={(DOMAIN,self.device_id)}
+            model=str(
+                self.coordinator.get_device_parameter(self.device_id, 'device_type')
+            )
+            .replace("_", " ")
+            .title()
+            + " meter",
+            sw_version="1.00",
+            identifiers={(DOMAIN, self.device_id)},
         )
-
-    # @property
-    # def name(self) -> str:
-        # """Return the name of the sensor."""
-        # return self.parameter.replace("_", " ").title()
 
     @property
     def unique_id(self) -> str:
@@ -125,3 +118,4 @@ class LuminusBaseEntity(CoordinatorEntity):
         # This is even more important if your integration supports multiple instances.
         # ----------------------------------------------------------------------------
         return f"{DOMAIN}-{self.device_id}-{self.parameter}"
+

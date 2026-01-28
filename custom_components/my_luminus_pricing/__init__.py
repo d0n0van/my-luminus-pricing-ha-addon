@@ -1,8 +1,4 @@
-"""
-Template from https://github.com/msp1974/HAIntegrationExamples/tree/main/msp_integration_101_intermediate
-https://github.com/home-assistant/example-custom-config/blob/master/custom_components/example_sensor/sensor.py
-https://developers.home-assistant.io/docs/internationalization/core
-"""
+"""My Luminus - Pricing integration."""
 
 from __future__ import annotations
 import logging
@@ -40,7 +36,7 @@ class RuntimeData:
 
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: MyConfigEntry) -> bool:
-    """Set up Example Integration from a config entry."""
+    """Set up My Luminus - Pricing from a config entry."""
 
     # ----------------------------------------------------------------------------
     # Initialise the coordinator that manages data updates from your api.
@@ -66,7 +62,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: MyConfigEntry) ->
 
     # ----------------------------------------------------------------------------
     # Initialise a listener for config flow options changes.
-    # This will be removed automatically if the integraiton is unloaded.
+    # This will be removed automatically if the integration is unloaded.
     # See config_flow for defining an options setting that shows up as configure
     # on the integration.
     # If you do not want any config flow options, no need to have listener.
@@ -101,15 +97,14 @@ async def _async_update_listener(hass: HomeAssistant, config_entry: ConfigEntry)
 
 
 async def async_remove_config_entry_device(
-    hass: HomeAssistant, config_entry: ConfigEntry, device_entry: DeviceEntry
+    hass: HomeAssistant, config_entry: MyConfigEntry, device_entry: DeviceEntry
 ) -> bool:
-    """Delete device if selected from UI.
-
-    Adding this function shows the delete device option in the UI.
-    Remove this function if you do not want that option.
-    You may need to do some checks here before allowing devices to be removed.
-    """
-    return True
+    """Return True if the device belongs to this config entry and can be removed."""
+    coordinator = config_entry.runtime_data.coordinator
+    if not coordinator.data:
+        return False
+    our_identifiers = {(DOMAIN, d["device_id"]) for d in coordinator.data}
+    return bool(device_entry.identifiers & our_identifiers)
 
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: MyConfigEntry) -> bool:

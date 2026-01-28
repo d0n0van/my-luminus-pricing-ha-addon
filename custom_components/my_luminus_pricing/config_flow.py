@@ -4,31 +4,17 @@ https://developers.home-assistant.io/docs/data_entry_flow_index/#labels--descrip
 
 from __future__ import annotations
 from typing import Any
-from homeassistant.config_entries import (
-    ConfigEntry,
-    ConfigFlow,
-    ConfigFlowResult,
-    OptionsFlow,
-)
-from homeassistant.const import (
-    CONF_CHOOSE,
-    CONF_DESCRIPTION,
-    CONF_HOST,
-    CONF_MINIMUM,
-    CONF_PASSWORD,
-    CONF_SCAN_INTERVAL,
-    CONF_SENSORS,
-    CONF_USERNAME,
-)
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult
+from homeassistant.const import CONF_PASSWORD, CONF_SCAN_INTERVAL, CONF_USERNAME
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.selector import selector
+
+import voluptuous as vol
 
 from .api import API, APIAuthError, APIConnectionError
 from .const import DEFAULT_SCAN_INTERVAL, DOMAIN, MIN_SCAN_INTERVAL, USE_MOCK_DATA
+
 import logging
-import voluptuous as vol
-#from .coordinator import ExampleCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -62,13 +48,8 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     return {"title": f"Luminus - {data[CONF_USERNAME]}"}
 
 
-async def validate_settings(hass: HomeAssistant, data: dict[str, Any]) -> bool:
-    """Another validation method for our config steps."""
-    return True
-
-
-class ExampleConfigFlow(ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Example Integration."""
+class LuminusConfigFlow(ConfigFlow, domain=DOMAIN):
+    """Handle config flow for My Luminus - Pricing."""
 
     VERSION = 1
     _input_data: dict[str, Any]

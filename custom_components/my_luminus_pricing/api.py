@@ -9,9 +9,20 @@ import requests
 from copy import deepcopy
 from typing import Any
 from urllib.parse import urlparse, parse_qs
-from .const import HTTP_TIMEOUT
+from .const import HTTP_TIMEOUT, LOGIN_TIMEOUT
 
 _LOGGER = logging.getLogger(__name__)
+
+DEFAULT_HEADERS = {
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "nl,en-US;q=0.7,en;q=0.3",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "Upgrade-Insecure-Requests": "1",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0",
+}
 
 MOCK_EAN_ELECTRICITY = "000000000123456789"
 MOCK_EAN_GAS = "123456789000000000"
@@ -76,40 +87,34 @@ MOCK_DATA = {
     }
 }
     
-defHeaders = { 
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-    'Accept-Language': 'nl,en-US;q=0.7,en;q=0.3',
-    'Sec-Fetch-Dest': 'document',
-    'Sec-Fetch-Mode': 'navigate',
-    'Sec-Fetch-Site': 'none',
-    'Sec-Fetch-User': '?1',
-    'Upgrade-Insecure-Requests' : '1',
-    'User-Agent' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0'
-}
-
 class API:
-    
     def __init__(self, user: str, pwd: str, mock: bool = False) -> None:
         self.user = user
         self.pwd = pwd
         self.session = requests.Session()
-        self.session.headers.update(defHeaders)
+        self.session.headers.update(DEFAULT_HEADERS)
         self.mock = mock
         self.mock_data = deepcopy(MOCK_DATA)
         self.mock_data_meters = deepcopy(MOCK_DATA_METERS)        
         self.isLoggedIn = False        
 
-    def get_meters(self) -> list[dict[str, Any]]:
+    def get_meters(self) -> dict[str, Any]:
+        """Return available meter sources (dict with 'meters' key)."""
         if self.mock:
-            return self.mock_data_meters;
-        return self.get_data('https://www.luminus.be/myluminus/api/meter-readings/available-sources')
-        
-    def get_meter(self, ean: str) -> list[dict[str, Any]]:
+            return self.mock_data_meters
+        return self.get_data(
+            "https://www.luminus.be/myluminus/api/meter-readings/available-sources"
+        )
+
+    def get_meter(self, ean: str) -> dict[str, Any]:
+        """Return price information for one EAN."""
         if self.mock:
             return self.mock_data[ean]
-        return self.get_data(f"https://www.luminus.be/myluminus/api/price-information/{ean}")
-        
-    def get_data(self, url: str) -> list[dict[str, Any]]:
+        return self.get_data(
+            f"https://www.luminus.be/myluminus/api/price-information/{ean}"
+        )
+
+    def get_data(self, url: str) -> Any:
         try:
             r = self.session.get(url, timeout=HTTP_TIMEOUT, allow_redirects=False)
             if(r.status_code == requests.codes.forbidden):
@@ -117,27 +122,35 @@ class API:
                 self.login()
                 r = self.session.get(url, timeout=HTTP_TIMEOUT, allow_redirects=False)
                 
-            if(r.status_code != requests.codes.ok):
-                _LOGGER.warning("Luminus response error", r.url, r.status_code, r.text)
+            if r.status_code != requests.codes.ok:
+                _LOGGER.warning(
+                    "Luminus response error: %s %s",
+                    r.url,
+                    r.status_code,
+                )
                 self.isLoggedIn = False
                 raise APIConnectionError("Error connecting to api")
             return r.json()
         except requests.exceptions.ConnectTimeout as err:
             raise APIConnectionError("Timeout connecting to api") from err
         except Exception as err:
-            raise APIConnectionError(err)
+            raise APIConnectionError(str(err)) from err
         
     def login(self):
         
         if self.mock or self.isLoggedIn:
-        #if self.mock:
             return
-            
-        _LOGGER.debug('Luminus Login called!')
-        r = self.session.get(f"https://www.luminus.be/myluminus/nl/", timeout=30)
-        u = urlparse(r.history[-1].headers['location'])
+
+        _LOGGER.debug("Luminus login called")
+        r = self.session.get(
+            "https://www.luminus.be/myluminus/nl/",
+            timeout=LOGIN_TIMEOUT,
+        )
+        if not r.history:
+            raise APIConnectionError("Login redirect missing; check Luminus portal")
+        u = urlparse(r.history[-1].headers["location"])
         q = parse_qs(u.query)
-        s = q['state'][0]
+        s = q["state"][0]
 
         authUriQry = { 'state': s}
         idHeaders = { 
@@ -153,7 +166,13 @@ class API:
             'webauthn-platform-available' : 'false', 
             'action': 'default' 
         }
-        idReq = self.session.post('https://login.luminus.be/u/login/identifier', params=authUriQry, data=idReqBody, timeout=30, headers=idHeaders)
+        idReq = self.session.post(
+            "https://login.luminus.be/u/login/identifier",
+            params=authUriQry,
+            data=idReqBody,
+            timeout=LOGIN_TIMEOUT,
+            headers=idHeaders,
+        )
         if(idReq.status_code != requests.codes.ok):
             raise APIAuthError()
             
@@ -167,7 +186,13 @@ class API:
             'password': self.pwd,
             'action': 'default' 
         }
-        authReq = self.session.post('https://login.luminus.be/u/login/password', params=authUriQry, data=authReqBody, timeout=30, headers=authHeaders)       
+        authReq = self.session.post(
+            "https://login.luminus.be/u/login/password",
+            params=authUriQry,
+            data=authReqBody,
+            timeout=LOGIN_TIMEOUT,
+            headers=authHeaders,
+        )       
         self.isLoggedIn = authReq.status_code == requests.codes.ok
         if(authReq.status_code != requests.codes.ok):
             raise APIAuthError()

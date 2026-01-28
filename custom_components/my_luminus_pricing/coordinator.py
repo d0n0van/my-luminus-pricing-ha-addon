@@ -4,24 +4,23 @@ from datetime import timedelta
 from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
-    #CONF_HOST,
     CONF_PASSWORD,
     CONF_SCAN_INTERVAL,
     CONF_USERNAME,
 )
-from homeassistant.core import DOMAIN, HomeAssistant
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import API, APIConnectionError
-from .const import DEFAULT_SCAN_INTERVAL, USE_MOCK_DATA
+from .const import DEFAULT_SCAN_INTERVAL, DOMAIN, USE_MOCK_DATA
 import logging
 
 _LOGGER = logging.getLogger(__name__)
 
 class LuminusCoordinator(DataUpdateCoordinator):
-    """My example coordinator."""
+    """Coordinator for Luminus pricing data."""
 
-    data: list[dict[str, Any]]
+    data: list[dict[str, Any]] | None
 
     def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
         """Initialize coordinator."""
@@ -82,12 +81,12 @@ class LuminusCoordinator(DataUpdateCoordinator):
                         'product_name': pname
                     }
                     data.append(device)
-                    for propName, price in meterPrices.items():
-                        device[propName] = price['rate'] / (1 if propName == 'fixed' else 100)
-                    
-            #await self.hass.async_add_executor_job(self.api.logout)
-            _LOGGER.info('Data updated.')
-            #_LOGGER.warning('updated coordinator data', data)  
+                    for prop_name, price in meterPrices.items():
+                        device[prop_name] = price["rate"] / (
+                            1 if prop_name == "fixed" else 100
+                        )
+
+            _LOGGER.debug("Data updated")
         except APIConnectionError as err:
             _LOGGER.error(err)
             raise UpdateFailed(err) from err
@@ -104,18 +103,19 @@ class LuminusCoordinator(DataUpdateCoordinator):
     #
     # These will be specific to your api or yo may not need them at all
     # ----------------------------------------------------------------------------
-    def get_device(self, device_id: int) -> dict[str, Any]:
+    def get_device(self, device_id: str) -> dict[str, Any] | None:
         """Get a device entity from our api data."""
+        if self.data is None:
+            return None
         try:
-            return [
-                devices for devices in self.data if devices["device_id"] == device_id
-            ][0]
-        except (TypeError, IndexError):
-            # In this case if the device id does not exist you will get an IndexError.
-            # If api did not return any data, you will get TypeError.
+            return next(
+                (d for d in self.data if d["device_id"] == device_id),
+                None,
+            )
+        except (TypeError, KeyError):
             return None
 
-    def get_device_parameter(self, device_id: int, parameter: str) -> Any:
+    def get_device_parameter(self, device_id: str, parameter: str) -> Any:
         """Get the parameter value of one of our devices from our api data."""
         if device := self.get_device(device_id):
             return device.get(parameter)
